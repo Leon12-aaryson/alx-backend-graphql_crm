@@ -89,6 +89,12 @@ class CreateOrderResponse(graphene.ObjectType):
     errors = graphene.List(graphene.String)
 
 
+class UpdateLowStockProductsResponse(graphene.ObjectType):
+    updated_products = graphene.List(ProductType)
+    success_message = graphene.String()
+    errors = graphene.List(graphene.String)
+
+
 # Mutations
 class CreateCustomer(graphene.Mutation):
     class Arguments:
@@ -256,11 +262,53 @@ class CreateOrder(graphene.Mutation):
             return CreateOrderResponse(order=None, errors=errors)
 
 
+class UpdateLowStockProducts(graphene.Mutation):
+    """
+    Mutation to update low stock products (stock < 10) by incrementing their stock by 10
+    """
+    
+    class Arguments:
+        pass  # No arguments needed
+    
+    Output = UpdateLowStockProductsResponse
+    
+    def mutate(self, info):
+        errors = []
+        updated_products = []
+        
+        try:
+            # Find products with stock < 10
+            low_stock_products = Product.objects.filter(stock__lt=10)
+            
+            # Update each product's stock
+            for product in low_stock_products:
+                product.stock += 10
+                product.save()
+                updated_products.append(product)
+            
+            success_message = f"Updated {len(updated_products)} low stock products"
+            
+            return UpdateLowStockProductsResponse(
+                updated_products=updated_products,
+                success_message=success_message,
+                errors=[]
+            )
+            
+        except Exception as e:
+            errors.append(str(e))
+            return UpdateLowStockProductsResponse(
+                updated_products=[],
+                success_message="",
+                errors=errors
+            )
+
+
 class Mutation(graphene.ObjectType):
     create_customer = CreateCustomer.Field()
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+    update_low_stock_products = UpdateLowStockProducts.Field()
 
 
 # Query Class
